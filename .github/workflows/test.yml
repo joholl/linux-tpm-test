@@ -1,0 +1,97 @@
+name: Build and test
+
+on: [push, pull_request]
+
+env:
+  KDIR: ${{ github.workspace }}/linux
+  REMOTE: https://git.kernel.org/pub/scm/linux/kernel/git/jarkko/linux-tpmdd.git
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y bc \
+                                bison \
+                                build-essential \
+                                flex \
+                                git \
+                                kmod \
+                                libelf-dev \
+                                libssl-dev \
+                                lz4 \
+                                rsync \
+                                wget
+    - name: Checkout this repository
+      uses: actions/checkout@v4
+    - name: Checkout linux
+      run: |
+        git clone --depth=1 $REMOTE $KDIR
+    - name: Configure kernel
+      run: |
+        KDIR=$KDIR scripts/config.sh
+    - name: Get kernel version
+      run: |
+        make -j12 -C "$KDIR" include/config/kernel.release
+        echo "VERSION=$(cat $KDIR/include/config/kernel.release)" >> $GITHUB_ENV
+    - name: Cache built linux kernel and rootfs
+      id: cache
+      uses: actions/cache@v4
+      env:
+        cache-name: cache-linux-and-rootfs
+      with:
+        path: |
+          ${{ github.workspace }}/build/bzImage-${{ env.VERSION }}
+          ${{ github.workspace }}/build/minirootfs-${{ env.VERSION }}.img.lz4
+        key: ${{ env.VERSION }}
+    - name: Build TPM drivers
+      if: ${{ steps.cache.outputs.cache-hit != 'true' }}
+      run: |
+        make -j$(nproc) -C $KDIR modules_prepare
+        make -j$(nproc) -C $KDIR KBUILD_MODPOST_WARN=1 M=drivers/char/tpm modules
+    - name: Build kernel
+      if: ${{ steps.cache.outputs.cache-hit != 'true' }}
+      run: |
+        make -j$(nproc) -C $KDIR bzImage
+    - name: Build kernel modules
+      if: ${{ steps.cache.outputs.cache-hit != 'true' }}
+      run: |
+        make -j$(nproc) -C $KDIR modules
+    - name: Build rootfs
+      if: ${{ steps.cache.outputs.cache-hit != 'true' }}
+      run: |
+        KDIR=$KDIR scripts/rootfs.sh
+    - name: List files
+      run: |
+        ls -la ${{ github.workspace }}/build
+    - name: Upload kernel and rootfs
+      uses: actions/upload-artifact@v4
+      with:
+        name: kernel-and-rootfs-${{ env.VERSION }}
+        path: |
+          ${{ github.workspace }}/build/bzImage-${{ env.VERSION }}
+          ${{ github.workspace }}/build/minirootfs-${{ env.VERSION }}.img.lz4
+  test:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y qemu-system-x86 \
+                                swtpm
+    - name: Checkout this repository
+      uses: actions/checkout@v4
+    - name: Download kernel and rootfs
+      uses: actions/download-artifact@v4
+      with:
+        path: ${{ github.workspace }}/build
+    - name: Move downloaded files
+      run: |
+        mv ${{ github.workspace }}/build/*/* ${{ github.workspace }}/build
+        ls -la ${{ github.workspace }}/build
+    - name: Run tpm selftests
+      run: |
+        scripts/test.sh

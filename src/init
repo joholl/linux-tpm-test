@@ -1,0 +1,26 @@
+#! /bin/sh
+#
+# /init executable file in the initramfs
+#
+mount -t devtmpfs dev /dev
+mount -t proc proc /proc
+mount -t sysfs sysfs /sys
+
+# mount kernel modules into /lib/modules/kver/?
+
+ip link set up dev lo
+ip link set eth0 up
+udhcpc
+
+echo
+echo ================= Loading TPM Kernel Modules =================
+modprobe tpm_tis
+
+echo
+echo ================= Running Selftests =================
+cd /home
+python3 -m unittest -v tpm2_tests
+# python3 -m unittest -v tpm2_tests.SmokeTest.test_seal_with_policy
+
+# exec /sbin/getty -n -l /bin/sh 115200 /dev/console
+poweroff -f
