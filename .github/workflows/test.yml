@@ -8,6 +8,7 @@ env:
 
 jobs:
   build:
+    name: build kernel and rootfs
     runs-on: ubuntu-latest
     steps:
     - name: Install dependencies
@@ -22,13 +23,17 @@ jobs:
                                 libelf-dev \
                                 libssl-dev \
                                 lz4 \
+                                python3-pip \
                                 rsync \
                                 wget
+        python -m pip install yq
     - name: Checkout this repository
       uses: actions/checkout@v4
     - name: Checkout linux
       run: |
-        git clone --depth=1 $REMOTE $KDIR
+        git config --global user.name "Github Actions"
+        git config --global user.email "github.actions@example.com"
+        KDIR=$KDIR scripts/checkout.sh
     - name: Configure kernel
       run: |
         KDIR=$KDIR scripts/config.sh
@@ -75,6 +80,7 @@ jobs:
           ${{ github.workspace }}/build/minirootfs-${{ env.VERSION }}.img.lz4
   test:
     needs: build
+    name: test with qemu/swtpm
     runs-on: ubuntu-latest
     steps:
     - name: Install dependencies

@@ -1,0 +1,35 @@
+[repo]
+# ---------------------------------------------------------------------------------------------
+# mandatory
+url = "https://git.kernel.org/pub/scm/linux/kernel/git/jarkko/linux-tpmdd.git"
+# ---------------------------------------------------------------------------------------------
+# optional
+# if given, git clone will directly clone branch or tag (but not commit)
+#branch = "master"
+# ---------------------------------------------------------------------------------------------
+# optional
+# if given, depth of shallow copy (increased this number you need to reach a specific commit)
+depth = 1
+# ---------------------------------------------------------------------------------------------
+# optional
+# if given, this commit (or branch/tag/ref) will be checked out after clone
+# consider changing depth if using this option
+#checkout = "678aefbcb08d"
+# ---------------------------------------------------------------------------------------------
+
+
+# The list of changes is optional and will be applied from top to bottom
+# multiple changes of the same kind are supported
+#  .kind: one of "patches", "series", "cherry-pick"
+#  .id:   patch/series/commit id (linux intedrity or same local repo only)
+#         see curl --silent https://patchwork.kernel.org/api/1.2/series/639190/ | jq
+#         see curl --silent https://patchwork.kernel.org/api/1.2/patches/12841414/ | jq
+# [[changes]]
+# kind = "patches"
+# ids = [ "13555386", "13555387", "13555388" ]
+# [[changes]]
+# kind = "series"
+# ids = [ "825728" ]
+# [[changes]]
+# kind = "cherry-pick"
+# ids = [ "6b56f5f1ef93", "6422cbd3c52d" ]
